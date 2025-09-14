@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>Sapa Warga Barokah</title>
+  <title>Website RT - Data Warga & Iuran</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
     form { margin-bottom: 20px; }
@@ -16,7 +16,7 @@
   </style>
 </head>
 <body>
-  <h1>Hallo Warga Barokah :)</h1>
+  <h1>Website RT - Data Warga & Iuran</h1>
 
   <!-- === LOGIN FORM === -->
   <div id="login">
@@ -86,4 +86,157 @@
       appId: "1:135687399675:web:92bf5672e9b533e401285e"
     };
 
-    const app = initializeApp(f
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Dummy user (bisa diganti Firebase Auth kalau mau)
+    const users = {
+      admin: { username: "admin", password: "admin123", role: "admin" },
+      user: { username: "user", password: "user123", role: "user" }
+    };
+
+    let currentRole = null;
+
+    // === LOGIN ===
+    document.getElementById("formLogin").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const u = document.getElementById("username").value;
+      const p = document.getElementById("password").value;
+
+      if (users[u] && users[u].password === p) {
+        currentRole = users[u].role;
+        document.getElementById("login").style.display = "none";
+        document.getElementById("app").style.display = "block";
+        document.getElementById("roleLabel").textContent = currentRole.toUpperCase();
+
+        if (currentRole === "user") {
+          document.getElementById("adminWarga").style.display = "none";
+          document.getElementById("adminIuran").style.display = "none";
+        }
+        loadWarga();
+        loadIuran();
+      } else {
+        alert("Login gagal!");
+      }
+    });
+
+    window.logout = function() {
+      currentRole = null;
+      document.getElementById("login").style.display = "block";
+      document.getElementById("app").style.display = "none";
+    };
+
+    // === CRUD WARGA ===
+    document.getElementById("formWarga").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const id = document.getElementById("wargaId").value;
+      const nama = document.getElementById("nama").value;
+      const pekerjaan = document.getElementById("pekerjaan").value;
+      const perkawinan = document.getElementById("perkawinan").value;
+      const sekolah = document.getElementById("sekolah").value;
+
+      if (id) {
+        await updateDoc(doc(db, "warga", id), { nama, pekerjaan, perkawinan, sekolah });
+        alert("Data warga diperbarui!");
+      } else {
+        await addDoc(collection(db, "warga"), { nama, pekerjaan, perkawinan, sekolah, tanggal: serverTimestamp() });
+        alert("Data warga ditambahkan!");
+      }
+      document.getElementById("formWarga").reset();
+      loadWarga();
+    });
+
+    async function loadWarga() {
+      const list = document.getElementById("listWarga");
+      list.innerHTML = "";
+      const search = document.getElementById("searchWarga").value.toLowerCase();
+      const snapshot = await getDocs(collection(db, "warga"));
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        if (!search || data.nama.toLowerCase().includes(search)) {
+          let li = document.createElement("li");
+          li.innerHTML = `
+            ${data.nama} | ${data.pekerjaan} | ${data.perkawinan} | ${data.sekolah} | ${data.tanggal?.toDate ? data.tanggal.toDate().toLocaleDateString() : ""}
+            ${currentRole === "admin" ? `
+              <button class="btn edit" onclick="editWarga('${docSnap.id}', '${data.nama}', '${data.pekerjaan}', '${data.perkawinan}', '${data.sekolah}')">Edit</button>
+              <button class="btn delete" onclick="deleteWarga('${docSnap.id}')">Hapus</button>
+            ` : ""}
+          `;
+          list.appendChild(li);
+        }
+      });
+    }
+
+    window.editWarga = function(id, nama, pekerjaan, perkawinan, sekolah) {
+      document.getElementById("wargaId").value = id;
+      document.getElementById("nama").value = nama;
+      document.getElementById("pekerjaan").value = pekerjaan;
+      document.getElementById("perkawinan").value = perkawinan;
+      document.getElementById("sekolah").value = sekolah;
+    };
+
+    window.deleteWarga = async function(id) {
+      if (confirm("Yakin hapus data warga ini?")) {
+        await deleteDoc(doc(db, "warga", id));
+        loadWarga();
+      }
+    };
+
+    document.getElementById("searchWarga").addEventListener("input", loadWarga);
+
+    // === CRUD IURAN ===
+    document.getElementById("formIuran").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const id = document.getElementById("iuranId").value;
+      const nama = document.getElementById("wargaNama").value;
+      const jumlah = parseInt(document.getElementById("jumlah").value);
+
+      if (id) {
+        await updateDoc(doc(db, "keuangan", id), { nama, jumlah });
+        alert("Data iuran diperbarui!");
+      } else {
+        await addDoc(collection(db, "keuangan"), { nama, jumlah, tanggal: serverTimestamp() });
+        alert("Data iuran ditambahkan!");
+      }
+      document.getElementById("formIuran").reset();
+      loadIuran();
+    });
+
+    async function loadIuran() {
+      const list = document.getElementById("listIuran");
+      list.innerHTML = "";
+      const search = document.getElementById("searchIuran").value.toLowerCase();
+      const snapshot = await getDocs(collection(db, "keuangan"));
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        if (!search || data.nama.toLowerCase().includes(search)) {
+          let li = document.createElement("li");
+          li.innerHTML = `
+            ${data.nama} - Rp ${data.jumlah} | ${data.tanggal?.toDate ? data.tanggal.toDate().toLocaleDateString() : ""}
+            ${currentRole === "admin" ? `
+              <button class="btn edit" onclick="editIuran('${docSnap.id}', '${data.nama}', ${data.jumlah})">Edit</button>
+              <button class="btn delete" onclick="deleteIuran('${docSnap.id}')">Hapus</button>
+            ` : ""}
+          `;
+          list.appendChild(li);
+        }
+      });
+    }
+
+    window.editIuran = function(id, nama, jumlah) {
+      document.getElementById("iuranId").value = id;
+      document.getElementById("wargaNama").value = nama;
+      document.getElementById("jumlah").value = jumlah;
+    };
+
+    window.deleteIuran = async function(id) {
+      if (confirm("Yakin hapus data iuran ini?")) {
+        await deleteDoc(doc(db, "keuangan", id));
+        loadIuran();
+      }
+    };
+
+    document.getElementById("searchIuran").addEventListener("input", loadIuran);
+  </script>
+</body>
+</html>
