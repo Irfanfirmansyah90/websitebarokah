@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Database Warga RT - Barokah</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: #f4f6f9;
+    }
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+    }
+    form {
+      max-width: 400px;
+      margin: 20px auto;
+      padding: 15px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    form input, form button {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    form button {
+      background: #3498db;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    form button:hover {
+      background: #2980b9;
+    }
+    ul {
+      max-width: 500px;
+      margin: 20px auto;
+      padding: 0;
+      list-style: none;
+    }
+    ul li {
+      background: #fff;
+      margin: 6px 0;
+      padding: 10px;
+      border-radius: 6px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+  <h1>📋 Data Warga RT - Barokah</h1>
+
+  <!-- Form Input -->
+  <form id="formPenduduk">
+    <input type="text" id="nama" placeholder="Nama penduduk" required>
+    <input type="text" id="status" placeholder="Status (Menikah, Bekerja, Sekolah)" required>
+    <button type="submit">Simpan</button>
+  </form>
+
+  <!-- Daftar Warga -->
+  <h2 style="text-align:center;">Daftar Warga</h2>
+  <ul id="listPenduduk"></ul>
+
+  <!-- Firebase Script -->
+  <script type="module">
+    // Import Firebase SDK
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+
+    // Konfigurasi Firebase (ambil dari Project Settings -> SDK setup and configuration)
+    const firebaseConfig = {
+      apiKey: "AIzaSyC6s1V-g8KHNpJIjlSVTP7Twz4YLcjQtzY",
+      authDomain: "database-barokah.firebaseapp.com",
+      projectId: "database-barokah",
+      storageBucket: "database-barokah.appspot.com",
+      messagingSenderId: "135687399675",
+      appId: "1:135687399675:web:92bf5672e9b533e401285e"
+    };
+
+    // Inisialisasi Firebase & Firestore
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Simpan data ke Firestore
+    async function simpanData(nama, status) {
+      try {
+        await addDoc(collection(db, "penduduk"), {
+          nama,
+          status,
+          timestamp: new Date()
+        });
+        tampilkanData();
+      } catch (e) {
+        console.error("Error menyimpan data: ", e);
+      }
+    }
+
+    // Ambil & tampilkan data dari Firestore
+    async function tampilkanData() {
+      const querySnapshot = await getDocs(collection(db, "penduduk"));
+      let output = "";
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        output += `<li><strong>${data.nama}</strong> - ${data.status}</li>`;
+      });
+      document.getElementById("listPenduduk").innerHTML = output;
+    }
+
+    // Event listener form
+    document.getElementById("formPenduduk").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const nama = document.getElementById("nama").value;
+      const status = document.getElementById("status").value;
+      simpanData(nama, status);
+      e.target.reset();
+    });
+
+    // Tampilkan data saat halaman load
+    tampilkanData();
+  </script>
+</body>
+</html>
